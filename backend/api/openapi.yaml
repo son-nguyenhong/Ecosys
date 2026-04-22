@@ -1,0 +1,1528 @@
+openapi: "3.1.0"
+info:
+  title: VIB DevOps Ecosystem Platform — Combined API
+  version: "2.0.0"
+  description: |
+    API contract for 4 modules added in BRD-001 v1.1 (FR-019 – FR-032).
+    Auth: Bearer JWT (ADR-003). All write operations produce audit log (NFR-007).
+    Banking-grade: all endpoints except /health require Authorization header.
+  contact:
+    name: Backend Dev (Agent 06)
+
+servers:
+  - url: http://localhost:8001
+    description: PPG System — Annual Plans, Project Objects, Reports
+  - url: http://localhost:8002
+    description: BA Workflow — BA Documents v2
+  - url: http://localhost:8003
+    description: Test Platform — Test Documents
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: NOT_FOUND
+            message:
+              type: string
+            details:
+              type: object
+
+    Meta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        size:
+          type: integer
+
+    AnnualPlan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        year:
+          type: integer
+          minimum: 2020
+          maximum: 2050
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, active, closed]
+        objectives_count:
+          type: integer
+        dod_completion_pct:
+          type: number
+          format: float
+        projects_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+
+    AnnualPlanCreate:
+      type: object
+      required: [name, year, objectives]
+      properties:
+        name:
+          type: string
+          maxLength: 300
+        year:
+          type: integer
+          minimum: 2020
+          maximum: 2050
+        description:
+          type: string
+          nullable: true
+        objectives:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [title]
+            properties:
+              title:
+                type: string
+                maxLength: 500
+              description:
+                type: string
+                nullable: true
+              sort_order:
+                type: integer
+                default: 0
+        dod_items:
+          type: array
+          items:
+            type: object
+            required: [criterion]
+            properties:
+              criterion:
+                type: string
+                maxLength: 500
+              weight:
+                type: number
+                default: 1.0
+                exclusiveMinimum: 0
+                maximum: 100
+
+    DodItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        plan_id:
+          type: string
+          format: uuid
+        criterion:
+          type: string
+        weight:
+          type: number
+        is_achieved:
+          type: boolean
+        achieved_at:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    StandardInfoWebApp:
+      type: object
+      required: [object_type, tech_stack, version]
+      properties:
+        object_type:
+          type: string
+          enum: [web_app]
+        tech_stack:
+          type: string
+        version:
+          type: string
+        url_dev:
+          type: string
+          nullable: true
+        url_staging:
+          type: string
+          nullable: true
+        url_uat:
+          type: string
+          nullable: true
+        url_prod:
+          type: string
+          nullable: true
+        deployment_type:
+          type: string
+          enum: [on-premise, cloud, hybrid]
+          nullable: true
+        sso_enabled:
+          type: boolean
+          default: false
+        notes:
+          type: string
+          nullable: true
+
+    StandardInfoMobileApp:
+      type: object
+      required: [object_type, platform, version]
+      properties:
+        object_type:
+          type: string
+          enum: [mobile_app]
+        platform:
+          type: string
+          enum: [iOS, Android, cross-platform]
+        version:
+          type: string
+        store_link_ios:
+          type: string
+          nullable: true
+        store_link_android:
+          type: string
+          nullable: true
+        tech_stack:
+          type: string
+          nullable: true
+        min_os_version:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    StandardInfoApi:
+      type: object
+      required: [object_type, base_url, auth_method, version]
+      properties:
+        object_type:
+          type: string
+          enum: [api]
+        base_url:
+          type: string
+        auth_method:
+          type: string
+          enum: [JWT, OAuth2, API_Key, Basic, None]
+        version:
+          type: string
+        url_dev:
+          type: string
+          nullable: true
+        url_uat:
+          type: string
+          nullable: true
+        protocol:
+          type: string
+          enum: [REST, SOAP, GraphQL, gRPC]
+          default: REST
+        endpoints:
+          type: array
+          items:
+            type: object
+        swagger_url:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    StandardInfoElt:
+      type: object
+      required: [object_type, source_system, target_system, schedule]
+      properties:
+        object_type:
+          type: string
+          enum: [elt]
+        source_system:
+          type: string
+        target_system:
+          type: string
+        schedule:
+          type: string
+        technology:
+          type: string
+          nullable: true
+        data_format:
+          type: string
+          nullable: true
+        volume_estimate:
+          type: string
+          nullable: true
+        sla_minutes:
+          type: integer
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    ProjectObject:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        object_type:
+          type: string
+          enum: [web_app, mobile_app, api, elt]
+        name:
+          type: string
+        code:
+          type: string
+          pattern: '^[A-Z0-9_]+$'
+        description:
+          type: string
+          nullable: true
+        owner:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, deprecated, decommissioned]
+        standard_info:
+          type: object
+          description: Type-specific fields per ADR-004
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+
+    ProjectObjectCreate:
+      type: object
+      required: [object_type, name, code, standard_info]
+      properties:
+        object_type:
+          type: string
+          enum: [web_app, mobile_app, api, elt]
+        name:
+          type: string
+          maxLength: 200
+        code:
+          type: string
+          maxLength: 50
+          pattern: '^[A-Z0-9_]+$'
+        description:
+          type: string
+          nullable: true
+        owner:
+          type: string
+          nullable: true
+        standard_info:
+          type: object
+          description: Validated per object_type discriminated union (ADR-004)
+
+    BADocument:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        doc_type:
+          type: string
+          enum: [BRD, BRS, FSD, API_SPEC, ERD, DATA_DICT, WIREFRAME, PROCESS_FLOW]
+        title:
+          type: string
+        content:
+          type: string
+        version:
+          type: string
+        status:
+          type: string
+          enum: [draft, in_review, approved, archived]
+        milestone_id:
+          type: string
+          format: uuid
+          nullable: true
+        metadata:
+          type: object
+        linked_objects:
+          type: array
+          items:
+            type: object
+        created_at:
+          type: string
+          format: date-time
+
+    TestDocument:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        object_id:
+          type: string
+          format: uuid
+          nullable: true
+        doc_type:
+          type: string
+          enum: [TEST_PLAN, BUG_REPORT, UAT_SIGNOFF]
+        title:
+          type: string
+        content:
+          type: string
+        status:
+          type: string
+          description: |
+            TEST_PLAN: draft|in_review|approved|archived
+            BUG_REPORT: open|in_progress|resolved|closed
+            UAT_SIGNOFF: draft|pending_sign|signed|archived
+        milestone_id:
+          type: string
+          format: uuid
+          nullable: true
+        metadata:
+          type: object
+          description: |
+            BUG_REPORT: {severity: critical|high|medium|low, component: string}
+            UAT_SIGNOFF: {approver: string, sign_date: date, scope: string}
+        created_at:
+          type: string
+          format: date-time
+
+security:
+  - BearerAuth: []
+
+paths:
+
+  # =========================================================================
+  # Module 1 — Annual Plans (PPG :8001)
+  # =========================================================================
+
+  /api/v1/annual-plans:
+    get:
+      summary: List annual plans (FR-019)
+      operationId: listAnnualPlans
+      tags: [annual-plans]
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, active, closed]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        "200":
+          description: List of annual plans
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AnnualPlan"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "401":
+          description: Unauthorized
+
+    post:
+      summary: Create annual plan (FR-019)
+      operationId: createAnnualPlan
+      tags: [annual-plans]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnualPlanCreate"
+      responses:
+        "201":
+          description: Created annual plan
+        "400":
+          description: Missing objectives
+        "422":
+          description: Validation error
+
+  /api/v1/annual-plans/{plan_id}:
+    get:
+      summary: Get annual plan details (FR-019)
+      operationId: getAnnualPlan
+      tags: [annual-plans]
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Annual plan with objectives, dod_items, projects
+        "404":
+          description: Not found
+
+    put:
+      summary: Update plan name/description
+      operationId: updateAnnualPlan
+      tags: [annual-plans]
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        "200":
+          description: Updated plan
+
+    delete:
+      summary: Soft delete plan (draft only)
+      operationId: deleteAnnualPlan
+      tags: [annual-plans]
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "409":
+          description: Plan is active or closed
+
+  /api/v1/annual-plans/{plan_id}/status:
+    post:
+      summary: Change plan status — draft→active→closed (FR-019, BR-009, BR-010)
+      operationId: changePlanStatus
+      tags: [annual-plans]
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [activate, close]
+      responses:
+        "200":
+          description: Updated plan status
+        "409":
+          description: State machine violation or ACTIVE_PROJECTS_EXIST (BR-010)
+
+  /api/v1/annual-plans/{plan_id}/dod-items:
+    get:
+      summary: List DoD items with completion % (FR-020)
+      operationId: listDodItems
+      tags: [annual-plans]
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: DoD items list with dod_completion_pct
+
+  /api/v1/annual-plans/{plan_id}/dod-items/{item_id}:
+    put:
+      summary: Update DoD item achieved status (FR-020)
+      operationId: updateDodItem
+      tags: [annual-plans]
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: item_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_achieved]
+              properties:
+                is_achieved:
+                  type: boolean
+                notes:
+                  type: string
+                  nullable: true
+      responses:
+        "200":
+          description: Updated DoD item. Audit log written.
+
+  /api/v1/annual-plans/{plan_id}/projects:
+    get:
+      summary: List projects linked to plan (FR-021)
+      operationId: listPlanProjects
+      tags: [annual-plans]
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of linked projects
+
+    post:
+      summary: Link project to plan (FR-021, BR-009)
+      operationId: linkProjectToPlan
+      tags: [annual-plans]
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_id]
+              properties:
+                project_id:
+                  type: string
+                  format: uuid
+      responses:
+        "201":
+          description: Link created
+        "409":
+          description: PLAN_NOT_ACTIVE — plan must be active (BR-009)
+
+  /api/v1/annual-plans/{plan_id}/projects/{project_id}:
+    delete:
+      summary: Unlink project from plan (FR-021)
+      operationId: unlinkProjectFromPlan
+      tags: [annual-plans]
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Unlinked (soft — sets unlinked_at)
+
+  # =========================================================================
+  # Module 2 — Project Objects (PPG :8001)
+  # =========================================================================
+
+  /api/v1/projects/{project_id}/objects:
+    get:
+      summary: List project objects (FR-023, FR-024, FR-025)
+      operationId: listProjectObjects
+      tags: [project-objects]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: object_type
+          in: query
+          schema:
+            type: string
+            enum: [web_app, mobile_app, api, elt]
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+            description: Search by name or code
+      responses:
+        "200":
+          description: List of objects
+
+    post:
+      summary: Create project object (FR-023/FR-024/FR-025, BR-011)
+      operationId: createProjectObject
+      tags: [project-objects]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectObjectCreate"
+      responses:
+        "201":
+          description: Created object
+        "409":
+          description: Duplicate code
+        "422":
+          description: OBJECT_INCOMPLETE — missing required fields per object_type (BR-011)
+
+  /api/v1/projects/{project_id}/objects/export:
+    get:
+      summary: Export objects to Excel (FR-023/FR-024/FR-025, BR-012)
+      operationId: exportObjects
+      tags: [project-objects]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: object_type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [web_app, mobile_app, api, elt]
+      responses:
+        "200":
+          description: Excel file download
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+
+  /api/v1/projects/{project_id}/objects/import:
+    post:
+      summary: Import objects from Excel (FR-023/FR-024/FR-025, BR-013)
+      operationId: importObjects
+      tags: [project-objects]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, object_type]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                object_type:
+                  type: string
+                  enum: [web_app, mobile_app, api, elt]
+                conflict_strategy:
+                  type: string
+                  enum: [ask, overwrite, skip]
+                  default: ask
+      responses:
+        "200":
+          description: Import result with created/updated/skipped/errors
+        "409":
+          description: IMPORT_CONFLICT — conflicting codes found, user must confirm (BR-013)
+
+  /api/v1/projects/{project_id}/objects/{object_id}:
+    get:
+      summary: Get object detail with stats
+      operationId: getProjectObject
+      tags: [project-objects]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: object_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Object with ba_docs_linked and test_cases_linked stats
+
+    put:
+      summary: Update object (object_type and code are immutable)
+      operationId: updateProjectObject
+      tags: [project-objects]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: object_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                owner:
+                  type: string
+                standard_info:
+                  type: object
+      responses:
+        "200":
+          description: Updated object
+
+    delete:
+      summary: Decommission object (soft delete)
+      operationId: decommissionObject
+      tags: [project-objects]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: object_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Decommissioned
+        "409":
+          description: Object has active BA documents linked
+
+  /api/v1/projects/{project_id}/objects/{object_id}/connections:
+    get:
+      summary: List object connections (inbound + outbound)
+      operationId: listConnections
+      tags: [project-objects]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: object_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Outbound and inbound connections
+
+    post:
+      summary: Create connection to another object
+      operationId: createConnection
+      tags: [project-objects]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: object_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_object_id, connection_type]
+              properties:
+                target_object_id:
+                  type: string
+                  format: uuid
+                connection_type:
+                  type: string
+                  enum: [api_call, data_feed, event, file_transfer, db_sync, other]
+                protocol:
+                  type: string
+                frequency:
+                  type: string
+                description:
+                  type: string
+      responses:
+        "201":
+          description: Connection created
+        "409":
+          description: Self-loop or duplicate connection
+
+  /api/v1/projects/{project_id}/objects/{object_id}/connections/{conn_id}:
+    delete:
+      summary: Remove connection (soft delete)
+      operationId: removeConnection
+      tags: [project-objects]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: object_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: conn_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Connection removed
+
+  # =========================================================================
+  # Reports (PPG :8001)
+  # =========================================================================
+
+  /api/v1/reports/connections:
+    get:
+      summary: Cross-project connection report (FR-026)
+      operationId: crossProjectConnections
+      tags: [reports]
+      parameters:
+        - name: object_name
+          in: query
+          schema:
+            type: string
+        - name: object_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [in, out, both]
+            default: both
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Connection report with inbound and outbound connections
+        "404":
+          description: No objects found
+        "422":
+          description: Neither object_name nor object_id provided
+
+  /api/v1/reports/annual-plan-summary/{plan_id}:
+    get:
+      summary: Annual plan dashboard summary (FR-022)
+      operationId: annualPlanSummary
+      tags: [reports]
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Dashboard with dod_completion_pct, projects_by_status, project details
+
+  # =========================================================================
+  # Module 3 — BA Documents v2 (BA Workflow :8002)
+  # =========================================================================
+
+  /api/v1/documents:
+    get:
+      summary: List BA documents (FR-027, FR-028, FR-029)
+      operationId: listBADocuments
+      tags: [ba-documents]
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: doc_type
+          in: query
+          schema:
+            type: string
+            enum: [BRD, BRS, FSD, API_SPEC, ERD, DATA_DICT, WIREFRAME, PROCESS_FLOW]
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: object_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by linked object (FR-027)
+        - name: milestone_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of BA documents
+
+    post:
+      summary: Create BA document (FR-027, FR-029)
+      operationId: createBADocument
+      tags: [ba-documents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_id, doc_type, title]
+              properties:
+                project_id:
+                  type: string
+                  format: uuid
+                doc_type:
+                  type: string
+                  enum: [BRD, BRS, FSD, API_SPEC, ERD, DATA_DICT, WIREFRAME, PROCESS_FLOW]
+                title:
+                  type: string
+                  maxLength: 300
+                content:
+                  type: string
+                  default: ""
+                milestone_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                object_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                metadata:
+                  type: object
+      responses:
+        "201":
+          description: Created document
+        "422":
+          description: OBJECT_INCOMPLETE or validation error (BR-011)
+
+  /api/v1/documents/{doc_id}/status:
+    post:
+      summary: Change document status (FR-009, BR-001)
+      operationId: changeBADocStatus
+      tags: [ba-documents]
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [submit_review, approve, reject, archive]
+                notes:
+                  type: string
+      responses:
+        "200":
+          description: Updated status. If BRS approved, triggers test case auto-gen.
+        "409":
+          description: STATE_MACHINE_VIOLATION
+
+  /api/v1/documents/{doc_id}/objects:
+    get:
+      summary: List objects linked to document (FR-027)
+      operationId: listDocObjects
+      tags: [ba-documents]
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of linked objects
+
+    post:
+      summary: Link object to document (FR-027)
+      operationId: linkObjectToDoc
+      tags: [ba-documents]
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [object_id]
+              properties:
+                object_id:
+                  type: string
+                  format: uuid
+      responses:
+        "201":
+          description: Linked
+
+  /api/v1/documents/{doc_id}/objects/{object_id}:
+    delete:
+      summary: Unlink object from document (FR-027)
+      operationId: unlinkObjectFromDoc
+      tags: [ba-documents]
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: object_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Unlinked (document not deleted)
+
+  /api/v1/documents/{doc_id}/files:
+    post:
+      summary: Upload file attachment (ADR-005)
+      operationId: uploadBADocFile
+      tags: [ba-documents]
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: File uploaded
+        "413":
+          description: FILE_TOO_LARGE
+        "415":
+          description: FILE_TYPE_NOT_ALLOWED
+
+    get:
+      summary: List current files for document
+      operationId: listBADocFiles
+      tags: [ba-documents]
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of file records
+
+  /api/v1/documents/{doc_id}/files/{file_id}/download:
+    get:
+      summary: Download file (JWT required, audit logged)
+      operationId: downloadBADocFile
+      tags: [ba-documents]
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File binary stream
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+
+  /api/v1/documents/{doc_id}/files/copy-from-url:
+    post:
+      summary: Copy file from URL to internal storage (BR-007)
+      operationId: copyBADocFileFromUrl
+      tags: [ba-documents]
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                file_name:
+                  type: string
+      responses:
+        "200":
+          description: File copied
+
+  # =========================================================================
+  # Module 4 — Test Documents (Test Platform :8003)
+  # =========================================================================
+
+  /api/v1/test-documents:
+    get:
+      summary: List test documents (FR-030, FR-031, FR-032)
+      operationId: listTestDocuments
+      tags: [test-documents]
+      parameters:
+        - name: project_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: doc_type
+          in: query
+          schema:
+            type: string
+            enum: [TEST_PLAN, BUG_REPORT, UAT_SIGNOFF]
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: object_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by linked object (FR-030)
+        - name: milestone_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium, low]
+          description: BUG_REPORT only
+      responses:
+        "200":
+          description: List of test documents
+
+    post:
+      summary: Create test document (FR-032)
+      operationId: createTestDocument
+      tags: [test-documents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_id, doc_type, title]
+              properties:
+                project_id:
+                  type: string
+                  format: uuid
+                doc_type:
+                  type: string
+                  enum: [TEST_PLAN, BUG_REPORT, UAT_SIGNOFF]
+                title:
+                  type: string
+                content:
+                  type: string
+                object_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                milestone_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                metadata:
+                  type: object
+                  description: |
+                    BUG_REPORT: {severity: critical|high|medium|low}
+                    UAT_SIGNOFF: {scope: string}
+      responses:
+        "201":
+          description: Created test document
+        "422":
+          description: Invalid doc_type or invalid severity
+
+  /api/v1/test-documents/{doc_id}/status:
+    post:
+      summary: Change test document status per type state machine (FR-032)
+      operationId: changeTestDocStatus
+      tags: [test-documents]
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  description: Depends on doc_type state machine
+                notes:
+                  type: string
+                approver:
+                  type: string
+                  description: Required for UAT_SIGNOFF sign action
+                sign_date:
+                  type: string
+                  format: date
+                  description: Required for UAT_SIGNOFF sign action
+      responses:
+        "200":
+          description: Updated status
+        "409":
+          description: STATE_MACHINE_VIOLATION
+
+  /api/v1/test-documents/test-cases/{test_case_id}/objects:
+    get:
+      summary: Objects linked to a test case (inherited from BRS — FR-030, BR-014)
+      operationId: getTestCaseObjects
+      tags: [test-documents]
+      parameters:
+        - name: test_case_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of linked objects with inherited_from_brs flag
+
+  /api/v1/test-documents/objects/{object_id}/test-cases:
+    get:
+      summary: All test cases linked to an object (FR-030)
+      operationId: getObjectTestCases
+      tags: [test-documents]
+      parameters:
+        - name: object_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: size
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Paginated test cases
+
+  /api/v1/test-documents/objects/{object_id}/test-coverage:
+    get:
+      summary: Test coverage per object with milestone alerts (FR-031)
+      operationId: getObjectTestCoverage
+      tags: [test-documents]
+      parameters:
+        - name: object_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: |
+            Coverage summary: total_test_cases, executed, passed, failed,
+            coverage_pct, milestone_coverage (with alert when below threshold)
+
+  /api/v1/test-documents/{doc_id}/files:
+    post:
+      summary: Upload file for test document (ADR-005)
+      operationId: uploadTestDocFile
+      tags: [test-documents]
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: File uploaded
+        "413":
+          description: FILE_TOO_LARGE
+        "415":
+          description: FILE_TYPE_NOT_ALLOWED
+
+  /api/v1/test-documents/{doc_id}/files/{file_id}/download:
+    get:
+      summary: Download test document file (JWT required, audit logged)
+      operationId: downloadTestDocFile
+      tags: [test-documents]
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File binary stream

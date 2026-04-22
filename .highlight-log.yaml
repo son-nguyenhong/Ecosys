@@ -1,0 +1,37 @@
+# .highlight-log.yaml — VIB convert file System
+# Append-only event log. Dùng `git log --follow .highlight-log.yaml` để xem history.
+# Xem: Build_Standard.md — Section 4b (Highlight Log)
+# Types: MILESTONE | DECISION | BLOCKER | RISK | ESCALATION | INSIGHT | DEVIATION
+
+- timestamp:  "2026-04-09T00:00:00+07:00"
+  type:       MILESTONE
+  actor:      "system"
+  gate:       "Project Init"
+  artifact:   "Conver_file_001"
+  message:    "Project VIB convert file System khởi tạo. File system tạo theo Build_Standard.md v7.0. Phase 0 Stage 0.1 bắt đầu."
+
+- timestamp:  "2026-04-12T00:00:00+07:00"
+  type:       MILESTONE
+  actor:      "dev-agent"
+  gate:       "CODE-002 v2.0"
+  artifact:   "CODE-002"
+  message:    "Catalog module v2.0 complete. 5 files updated: V026 migration (+7 cols catalog_products, +2 cols environments), models.py (6 section sub-models + 5 type-specific detail models), catalog_products.py router (fix double-serialization, new JSONB fields), catalog.ts (TS interfaces + DEFAULT_TYPE_DETAILS), CatalogPage.tsx (8-tab detail modal + 5-section create form + per-type structured forms). Also: V025 migration fixes legacy double-serialized related_systems in annual_plans."
+
+- timestamp:  "2026-04-12T01:00:00+07:00"
+  type:       INSIGHT
+  actor:      "dev-agent"
+  artifact:   "asyncpg-jsonb-pattern"
+  message:    "CRITICAL PATTERN: asyncpg registers a JSONB codec that auto-encodes Python dict/list to JSON. Calling json.dumps() before passing to asyncpg causes double-serialization — value stored as JSON string instead of JSON object. Always pass Python objects directly to asyncpg JSONB parameters. Fix existing records with: UPDATE t SET col = (col #>> '{}')::jsonb WHERE jsonb_typeof(col) = 'string'."
+
+- timestamp:  "2026-04-13T00:00:00+07:00"
+  type:       MILESTONE
+  actor:      "dev-agent"
+  gate:       "CODE-003"
+  artifact:   "CODE-003"
+  message:    "3 features shipped: (1) Project Export/Import XLSX — project_export.py router (4 sheets), ppg.ts exportProject/importProject, PPGPage.tsx Export/Import buttons in OverviewTab header card. (2) Project Domain — V028 migration (project_domains LOV 12 entries + projects.domain_code FK), project_template.py updated to domain-scoped folder paths {domain}/{project}/BA+Tester, GET /projects/domains LOV endpoint, ProjectModal Domain dropdown, Overview badge. (3) Governance Checklist — V029 migration (project_activity_tasks), milestone_generator generate_activity_tasks() 38 tasks × 5 domains, activity_tasks.py router (GET/POST/PATCH/DELETE), ChecklistTab UI with progress bar + domain cards + click-to-cycle status + inline notes edit."
+
+- timestamp:  "2026-04-13T01:00:00+07:00"
+  type:       INSIGHT
+  actor:      "dev-agent"
+  artifact:   "project-init-auto-tasks"
+  message:    "Pattern: project init now auto-generates (a) 9 project milestones + BA/test tasks, (b) 8 BA milestones, (c) 7 test milestones, (d) 38 governance activity tasks across 5 domains. All in a single DB transaction in projects.py create_project(). domain_code is optional — folder paths degrade gracefully to {project_code}/ without domain prefix."

@@ -1,0 +1,29 @@
+# project-profile.yaml — VIB convert file System
+# VIB AI-DLC Platform — Project Profile
+# Lưu file này ở Git root. Đăng ký vào Artifact Registry khi Phase 0 Stage 0.1 kickoff.
+# Xem: Build_Standard.md — Section 2 và D3
+
+project_id:    "Conver_file_001"
+name:          "VIB convert file System"
+product_type:  internal_tool       # web_app | mobile_app | api_service | data_pipeline | internal_tool | hybrid
+tech_stack:
+  frontend:    nextjs              # next.js 15 + TypeScript (ADR-001)
+  backend:     python              # python 3.11(ADR-001)
+  database:    postgres              # Oracle Phase 1 → PostgreSQL Aurora Phase 2 (ADR-001)
+#  infra:       aws_eks             # AWS EKS (existing VIB cluster)
+launch_target: internal_only       # staging_web | testflight | google_play | internal_only | api_endpoint
+has_ui:        true                # true → Agent 04 và 05 active
+has_mobile:    false               # false → skip mobile build tools
+compliance:    banking_grade       # banking_grade | standard | none
+
+# Agents active cho project này (resolved từ product_type + has_ui + has_mobile)
+agents_active: [01, 02, 03, 04, 05, 06, 07, 08, 09]
+
+# CI/CD platform — D1 confirmed
+# ci_platform:   azure_devops        # azure_devops | github_actions | gitlab_ci
+
+# Artifact Registry
+artifact_registry_url: ""          # TODO: fill in Aurora endpoint khi Phase 1 setup
+
+# AI Autonomy Level hiện tại (nâng level cần approval: L2=TechLead, L3=Architect, L4=CTO)
+autonomy_level: 2                  # L1 | L2 | L3 | L4

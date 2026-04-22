@@ -1,0 +1,18 @@
+{
+  "name": "ado-mcp",
+  "version": "1.0.0",
+  "description": "Azure DevOps MCP Server for Claude Code — VIB B05-BTS-CTS",
+  "type": "module",
+  "main": "index.js",
+  "bin": { "ado-mcp": "./index.js" },
+  "scripts": {
+    "start": "node index.js",
+    "dev":   "node --watch index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "axios": "^1.7.0"
+  },
+  "engines": { "node": ">=18" },
+  "license": "ISC"
+}

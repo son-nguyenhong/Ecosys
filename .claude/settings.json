@@ -1,0 +1,62 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+    "mcpServers": {
+    "ecosys-mcpado": {
+      "command": "node",
+      "args": ["D:/application/ecosys/ecosys-mcpado/index.js"],
+      "env": {
+        "ADO_ORG":        "vib-lz-devops",
+        "ADO_PROJECT":    "B05-BTS-CTS",
+        "ADO_EMAIL":      "tin.leduc@vib.com.vn",
+        "ADO_AGENT_ROLE": "ba",
+        "ADO_PAT":        "GA2e0gAM1ERWVvX8xSUKNiWfhdiLprjRaeUwtzs0FA6oxGEMD3QqJQQJ99CDACAAAAA9J6bLAAASAZDO22nf"
+      }
+    }
+  }
+  ,
+  "hooks": {
+    "TeammateIdle": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/vib-teammate-idle-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash -c 'echo -ne \"\\033]0;⚠ AGENT NEEDS ATTENTION\\007\"'"
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/vib-task-quality-check.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/vib-highlight-logger.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/vib-bash-safety-check.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
