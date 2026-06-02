@@ -4,10 +4,12 @@ File records + versioning per project
 """
 import os
 import re
+import hashlib
 from datetime import date
+from pathlib import Path as FsPath
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import Response
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import Response, FileResponse
 from pydantic import BaseModel, Field
 from uuid import uuid4
 import asyncpg
@@ -16,6 +18,11 @@ from app.auth import CurrentUser
 from app.database import get_db
 
 router = APIRouter(prefix="/projects", tags=["files"])
+
+# ADR-005 Option C (Hybrid): file binary lưu filesystem nội bộ, DB lưu metadata + path.
+# Thư mục gốc lưu file; có thể override bằng biến môi trường FILE_STORAGE_DIR.
+STORAGE_ROOT = FsPath(os.getenv("FILE_STORAGE_DIR", "storage/uploads"))
+MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
 
 
 class FileCreate(BaseModel):
@@ -190,6 +197,118 @@ async def upload_new_version(
             new_version, fid,
         )
     return dict(ver_row)
+
+
+# ── Binary file upload (ADR-005 Option C) ─────────────────────────────────────
+
+@router.post("/{project_id}/files/{fid}/upload", status_code=201)
+async def upload_file_binary(
+    user: CurrentUser,
+    project_id: str,
+    fid: str,
+    file: UploadFile = File(...),
+    version: Optional[str] = Form(None),
+    uploaded_by: Optional[str] = Form(None),
+    db: asyncpg.Connection = Depends(get_db),
+):
+    """Nhận file binary (multipart), lưu xuống filesystem nội bộ, ghi version mới vào DB.
+
+    Khớp ADR-005 Option C: DB lưu metadata + storage_path, file thật nằm trên đĩa.
+    """
+    file_row = await db.fetchrow(
+        "SELECT * FROM project_files WHERE id=$1 AND project_id=$2", fid, project_id
+    )
+    if not file_row:
+        raise HTTPException(404, "File not found")
+
+    # Đọc nội dung + kiểm tra dung lượng
+    content = await file.read()
+    if not content:
+        raise HTTPException(400, "Empty file")
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, f"File too large (max {MAX_UPLOAD_BYTES // (1024*1024)} MB)")
+
+    # Tính version mới (auto-bump nếu không truyền)
+    if version:
+        new_version = version
+    else:
+        cur = file_row["current_version"] or "v0.0"
+        try:
+            parts = cur.lstrip("v").split(".")
+            parts[-1] = str(int(parts[-1]) + 1)
+            new_version = "v" + ".".join(parts)
+        except Exception:
+            new_version = cur + ".1"
+
+    # Lưu file: storage/uploads/<project_id>/<fid>/<version>__<tên gốc>
+    safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", file.filename or "upload.bin")
+    dest_dir = STORAGE_ROOT / project_id / fid
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = dest_dir / f"{new_version}__{safe_name}"
+    dest_path.write_bytes(content)
+
+    checksum = hashlib.sha256(content).hexdigest()
+    storage_path = str(dest_path).replace("\\", "/")
+    actor = uploaded_by or (user.sub if user else "system")
+
+    async with db.transaction():
+        ver_row = await db.fetchrow(
+            """
+            INSERT INTO file_versions
+                (id, file_id, version, storage_path, change_note, file_size, uploaded_by)
+            VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *""",
+            str(uuid4()), fid, new_version, storage_path,
+            f"Uploaded {safe_name} (sha256={checksum[:12]}…)",
+            len(content), actor,
+        )
+        await db.execute(
+            "UPDATE project_files SET current_version=$1, storage_path=$2, updated_at=NOW() WHERE id=$3",
+            new_version, storage_path, fid,
+        )
+    return dict(ver_row)
+
+
+# ── Download file binary (khớp frontend getFileDownloadUrl) ───────────────────
+
+@router.get("/{project_id}/files/{fid}/download")
+async def download_file_binary(
+    user: CurrentUser,
+    project_id: str,
+    fid: str,
+    version: Optional[str] = None,
+    db: asyncpg.Connection = Depends(get_db),
+):
+    """Tải file đã upload. Mặc định lấy version mới nhất; truyền ?version= để lấy bản cụ thể."""
+    file_row = await db.fetchrow(
+        "SELECT name FROM project_files WHERE id=$1 AND project_id=$2", fid, project_id
+    )
+    if not file_row:
+        raise HTTPException(404, "File not found")
+
+    if version:
+        ver = await db.fetchrow(
+            "SELECT storage_path, version FROM file_versions WHERE file_id=$1 AND version=$2",
+            fid, version,
+        )
+    else:
+        ver = await db.fetchrow(
+            "SELECT storage_path, version FROM file_versions WHERE file_id=$1 "
+            "ORDER BY uploaded_at DESC LIMIT 1",
+            fid,
+        )
+    if not ver or not ver["storage_path"]:
+        raise HTTPException(404, "No uploaded file content for this document (chưa upload bản nào)")
+
+    fpath = FsPath(ver["storage_path"])
+    if not fpath.exists():
+        raise HTTPException(404, f"File content missing on disk: {ver['storage_path']}")
+
+    download_name = file_row["name"] or fpath.name
+    return FileResponse(
+        path=str(fpath),
+        filename=download_name,
+        media_type="application/octet-stream",
+    )
 
 
 # ── GNM Export ────────────────────────────────────────────────────────────────

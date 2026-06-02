@@ -279,7 +279,7 @@ async def upload_doc_file(
                 (id, project_id, doc_category, name, file_type, current_version, status, created_by)
             VALUES ($1, $2, $3, $4, 'user_upload', $5, 'draft', $6)
             """,
-            file_id, project_id, doc_category, original_name, new_ver, user.username,
+            file_id, project_id, doc_category, original_name, new_ver, user.sub,
         )
 
     # Write file to disk
@@ -299,7 +299,7 @@ async def upload_doc_file(
             (id, file_id, version, storage_path, change_note, uploaded_by, file_size)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         """,
-        ver_id, file_id, new_ver, rel_path, change_note, user.username, len(content),
+        ver_id, file_id, new_ver, rel_path, change_note, user.sub, len(content),
     )
 
     # Update project_files latest pointer

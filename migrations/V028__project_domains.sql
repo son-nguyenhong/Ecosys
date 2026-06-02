@@ -30,7 +30,9 @@ INSERT INTO project_domains (code, name, description, sort_order) VALUES
   ('OPERATIONS',  'Operations',             'Vận hành & Hỗ trợ',                    9),
   ('DATA',        'Data & Analytics',       'Dữ liệu & Phân tích',                 10),
   ('SME',         'SME Banking',            'Ngân hàng doanh nghiệp vừa và nhỏ',   11),
-  ('TREASURY',    'Treasury',               'Ngân quỹ',                            12)
+  ('TREASURY',    'Treasury',               'Ngân quỹ',                            12),
+  ('ESD',         'Enterprise Software Delivery','Phát triển phần mềm doanh nghiệp',     13),
+  ('BOS',         'Banking Operations',     'Vận hành ngân hàng',                  14)
 ON CONFLICT (code) DO NOTHING;
 
 -- ── 3. Add domain_code to projects ─────────────────────────

@@ -1,4 +1,6 @@
 @echo off
+chcp 65001 >nul
+set PGCLIENTENCODING=UTF8
 echo ============================================
 echo  DevOps Ecosystem — Run All Migrations
 echo ============================================
@@ -10,7 +12,11 @@ echo [0] Initializing base schema...
 %PSQL% -f infra/init.sql
 if errorlevel 1 echo [WARN] init.sql had errors (may be ok if tables exist)
 
-echo [1] Running migrations V017 - V044...
+echo [0b] Base PPG tables + annual plans v2 (required before V018)...
+%PSQL% -f infra/migrate_ppg_tables.sql
+%PSQL% -f infra/migrate_annual_plans_v2.sql
+
+echo [1] Running migrations V017 - V046...
 for %%f in (
   migrations\V017__publish_jobs.sql
   migrations\V018__annual_plan_extended.sql
@@ -44,6 +50,8 @@ for %%f in (
   migrations\V042__test_documents_updated_by.sql
   migrations\V043__project_todos.sql
   migrations\V044__project_todos_status.sql
+  migrations\V045__ba_workflow_tables.sql
+  migrations\V046__project_objects_tables.sql
 ) do (
   echo   Running %%f ...
   %PSQL% -f %%f

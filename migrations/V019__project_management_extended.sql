@@ -325,7 +325,7 @@ CREATE INDEX IF NOT EXISTS idx_stakeholders_project     ON project_stakeholders(
 CREATE INDEX IF NOT EXISTS idx_priorities_project       ON project_priorities(project_id);
 
 CREATE INDEX IF NOT EXISTS idx_product_registry_project ON project_product_registry(project_id);
-CREATE INDEX IF NOT EXISTS idx_product_registry_type    ON project_product_registry(project_type);
+CREATE INDEX IF NOT EXISTS idx_product_registry_type    ON project_product_registry(product_type);
 CREATE INDEX IF NOT EXISTS idx_environments_product     ON project_environments(product_id);
 CREATE INDEX IF NOT EXISTS idx_app_details_product      ON project_app_details(product_id);
 CREATE INDEX IF NOT EXISTS idx_batch_jobs_product       ON project_batch_jobs(product_id);
