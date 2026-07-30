@@ -8,6 +8,7 @@ import BAPage from './pages/ba/BAPage'
 import AnnualPlansPage from './pages/annual-plans/AnnualPlansPage'
 import ProjectObjectsPage from './pages/projects/ProjectObjectsPage'
 import BAWorkflowPage from './pages/ba-workflow/BAWorkflowPage'
+import BAStudioPage from './pages/ba-studio/BAStudioPage'
 import TestWorkflowPage from './pages/test-workflow/TestWorkflowPage'
 import DocsPage from './pages/docs/DocsPage'
 import CatalogPage from './pages/catalog/CatalogPage'
@@ -21,6 +22,7 @@ const APPS = [
   { key: 'annual-plans'  as const, icon: '📅', label: 'Kế hoạch năm', sub: 'Annual Plan Management',        path: '/annual-plans',   desc: 'Quản lý mục tiêu, Definition of Done và danh mục dự án theo năm' },
   { key: 'ppg'           as const, icon: '🏗️', label: 'PPG System',   sub: 'Project Governance',            path: '/ppg',            desc: 'Single Source of Truth · IT Project Portfolio' },
   { key: 'ba-workflow'   as const, icon: '📝', label: 'BA',           sub: 'BA Document Hub',               path: '/ba-workflow',    desc: 'Transform Raw Requirements → BRD / BRS / ERD / API Spec' },
+  { key: 'ba-studio'     as const, icon: '🧬', label: 'BA Studio',    sub: 'Master Doc & Change Request',   path: '/ba-studio',      desc: 'Master Doc · Sổ CR · So sánh phiên bản & tài liệu · AI Adoption' },
   { key: 'test-workflow' as const, icon: '🧪', label: 'Test',         sub: 'Test Dashboard',                path: '/test-workflow',  desc: 'Strategy · Execution · Control · Tài liệu' },
   { key: 'docs'          as const, icon: '📚', label: 'Tài liệu',     sub: 'Dự án / BA / Test',             path: '/docs',           desc: '' },
   { key: 'catalog'       as const, icon: '🗂️', label: 'Danh mục',     sub: 'Product & User Catalog',        path: '/catalog',        desc: 'Sản phẩm · Nhân sự · Vai trò & Phân quyền' },
@@ -129,6 +131,7 @@ function Shell() {
                 <Route path="/ppg"           element={<PPGPage />} />
                 <Route path="/catalog"       element={<CatalogPage />} />
                 <Route path="/ba-workflow"   element={<BAWorkflowPage />} />
+                <Route path="/ba-studio"     element={<BAStudioPage />} />
                 <Route path="/test-workflow" element={<TestWorkflowPage />} />
                 <Route path="/docs"          element={<DocsPage />} />
                 <Route path="/requests"     element={<RequestsPage />} />

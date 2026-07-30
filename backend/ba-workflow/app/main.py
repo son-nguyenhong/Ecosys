@@ -10,6 +10,7 @@ from app.database import init_pool, close_pool
 from app.routers import documents, requirements
 from app.routers import discussions, ba_tasks, timeline
 from app.routers import ba_documents_v2
+from app.routers import ba_studio
 
 
 @asynccontextmanager
@@ -37,6 +38,9 @@ app.include_router(timeline.router)
 
 # v2 routers — FR-027, FR-028, FR-029
 app.include_router(ba_documents_v2.router)
+
+# BA Studio — Master Doc có version + Change Request cấp tài liệu
+app.include_router(ba_studio.router)
 
 
 @app.get("/health")

@@ -16,6 +16,8 @@ build/
 # IDE
 .vscode/
 .idea/
+# File nhap SQL do SQLTools tao trong workspace — hay chua query du lieu that
+*.session.sql
 
 # Environment
 .env

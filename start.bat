@@ -1,4 +1,11 @@
 @echo off
+REM Trỏ app sang cluster portable chạy ở cổng 5433
+set DATABASE_URL=postgresql://devops:devops123@127.0.0.1:5433/devops_hub
+
+echo Starting local PostgreSQL on port 5433...
+"C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe" -D D:\pgdata -o "-p 5433" -l D:\pgdata\log.txt start
+timeout /t 3 /nobreak > nul
+
 echo Starting DevOps Ecosystem Platform...
 
 start "PPG System :8001" cmd /k "cd backend\ppg && python -m uvicorn app.main:app --port 8001 --reload"

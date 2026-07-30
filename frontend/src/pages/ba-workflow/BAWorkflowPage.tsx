@@ -611,9 +611,19 @@ export default function BAWorkflowPage() {
         <span style={{ fontSize: 13, color: 'var(--vib-neutral-500)' }}>
           {projects.length} dự án đang theo dõi · {domains.length} domain
         </span>
-        <Btn variant="ghost" size="sm" onClick={load} title="Refresh">
-          <RefreshCw size={13} />
-        </Btn>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <a
+            className="btn btn-secondary btn-sm"
+            href="/ba-studio"
+            title="Master Doc có version + Change Request cấp tài liệu"
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            🧬 BA Studio — Master Doc &amp; CR
+          </a>
+          <Btn variant="ghost" size="sm" onClick={load} title="Refresh">
+            <RefreshCw size={13} />
+          </Btn>
+        </div>
       </div>
 
       {/* Tab bar */}

@@ -1,12 +1,14 @@
 @echo off
 chcp 65001 >nul
 set PGCLIENTENCODING=UTF8
+set PATH=C:\Program Files\PostgreSQL\18\bin;%PATH%
+
 echo ============================================
-echo  DevOps Ecosystem — Run All Migrations
+echo  DevOps Ecosystem - Run All Migrations
 echo ============================================
 echo.
 
-set PSQL=psql -h 127.0.0.1 -U devops -d devops_hub
+set PSQL=psql -h 127.0.0.1 -p 5433 -U devops -d devops_hub
 
 echo [0] Initializing base schema...
 %PSQL% -f infra/init.sql
@@ -16,7 +18,7 @@ echo [0b] Base PPG tables + annual plans v2 (required before V018)...
 %PSQL% -f infra/migrate_ppg_tables.sql
 %PSQL% -f infra/migrate_annual_plans_v2.sql
 
-echo [1] Running migrations V017 - V046...
+echo [1] Running migrations V017 - V051...
 for %%f in (
   migrations\V017__publish_jobs.sql
   migrations\V018__annual_plan_extended.sql
@@ -52,6 +54,11 @@ for %%f in (
   migrations\V044__project_todos_status.sql
   migrations\V045__ba_workflow_tables.sql
   migrations\V046__project_objects_tables.sql
+  migrations\V047__ba_documents_review_approve_cols.sql
+  migrations\V048__audit_log_extra_cols.sql
+  migrations\V049__ba_studio_master_docs.sql
+  migrations\V050__ba_studio_seed.sql
+  migrations\V051__ba_studio_markdown.sql
 ) do (
   echo   Running %%f ...
   %PSQL% -f %%f

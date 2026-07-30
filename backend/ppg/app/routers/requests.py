@@ -379,11 +379,32 @@ async def update_project_change(
 
     # Fetch current status for history
     current = await db.fetchrow(
-        "SELECT status FROM project_change_requests WHERE id=$1::uuid", pcr_id
+        "SELECT status, merge_state, merged_version FROM project_change_requests WHERE id=$1::uuid",
+        pcr_id,
     )
     if not current:
         raise HTTPException(404, "PCR không tồn tại")
     old_status = current['status']
+
+    # ── Guard CR tài liệu (BA Studio) ─────────────────────────────────────────
+    # merge_state khác NULL ⇒ CR này gắn với 1 Master Doc; trạng thái của nó phải
+    # đi cùng việc merge/từ chối tài liệu, không được đổi rời rạc từ module Requests.
+    merge_state = current['merge_state']
+    if merge_state and updates.get("status"):
+        if merge_state in ('merged', 'rejected'):
+            done = f"đã merge vào {current['merged_version']}" if merge_state == 'merged' else "đã bị từ chối"
+            raise HTTPException(
+                409,
+                f"CR tài liệu {done} — không đổi trạng thái được nữa. "
+                "Xem chi tiết ở BA Studio.",
+            )
+        if updates["status"] in ('implemented', 'rejected', 'cancelled'):
+            raise HTTPException(
+                409,
+                "CR tài liệu phải được merge hoặc từ chối trong BA Studio "
+                "(để áp thay đổi vào tài liệu và sinh phiên bản mới), "
+                "không đổi trạng thái trực tiếp tại đây.",
+            )
 
     # Auto set approved_at
     if updates.get("status") == "approved" and "approved_by" not in updates:
@@ -422,6 +443,19 @@ async def delete_project_change(
     pcr_id: str,
     db: asyncpg.Connection = Depends(get_db),
 ):
+    row = await db.fetchrow(
+        "SELECT merge_state, merged_version FROM project_change_requests WHERE id=$1::uuid", pcr_id
+    )
+    if not row:
+        raise HTTPException(404, "PCR không tồn tại")
+    # CR tài liệu đã xử lý là nguồn của một phiên bản Master Doc → giữ lại để truy vết
+    if row['merge_state'] in ('merged', 'rejected'):
+        done = f"đã merge vào {row['merged_version']}" if row['merge_state'] == 'merged' else "đã bị từ chối"
+        raise HTTPException(
+            409,
+            f"CR tài liệu {done} — phải giữ lại phục vụ truy vết phiên bản tài liệu, không xoá được.",
+        )
+
     result = await db.execute(
         "DELETE FROM project_change_requests WHERE id = $1::uuid", pcr_id
     )

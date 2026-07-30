@@ -669,6 +669,15 @@ function PCRTab() {
                         {PRIORITY_LABELS[pcr.priority]}
                       </span>
                       <span className="badge badge-neutral">{PCR_CHANGE_TYPE_LABELS[pcr.change_type]}</span>
+                      {pcr.merge_state && (
+                        <span
+                          className="badge badge-info"
+                          title="CR gắn Master Doc — merge/từ chối thực hiện trong BA Studio"
+                        >
+                          📄 CR tài liệu
+                          {pcr.merged_version ? ` · ${pcr.merged_version}` : ''}
+                        </span>
+                      )}
                       {isSelected && (
                         <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--vib-primary)', fontWeight: 600 }}>
                           ● Đang xem
@@ -734,6 +743,29 @@ function PCRTab() {
                 + Tạo Task
               </button>
             </div>
+
+            {selected.merge_state && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10, marginTop: 10,
+                padding: '8px 12px', borderRadius: 6, fontSize: 12,
+                background: 'var(--vib-info-bg)', border: '1px solid #BBD9F2',
+              }}>
+                <span style={{ flex: 1, color: 'var(--vib-neutral-700)' }}>
+                  CR này gắn với một Master Doc
+                  {selected.merged_version
+                    ? ` — đã merge vào ${selected.merged_version}`
+                    : ' — thay đổi nội dung tài liệu được review bằng diff'}
+                  . Merge / từ chối thực hiện trong BA Studio.
+                </span>
+                <a
+                  className="btn btn-secondary btn-sm"
+                  href={`/ba-studio?view=cr&cr=${selected.id}`}
+                  style={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+                >
+                  Mở trong BA Studio →
+                </a>
+              </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, margin: '12px 0' }}>
               <div>

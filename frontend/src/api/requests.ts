@@ -58,6 +58,15 @@ export interface ProjectChangeRequest {
   notes?:        string
   created_at:    string
   updated_at:    string
+  // ── CR cấp tài liệu (BA Studio) — NULL với CR dự án thường ──────────────────
+  target_doc_id?:  string | null
+  merge_state?:    'pending' | 'merged' | 'rejected' | null
+  merged_version?: string | null
+  merged_at?:      string | null
+  reviewer?:       string | null
+  reviewed_at?:    string | null
+  acceptance?:     string[]
+  dependencies?:   string[]
 }
 
 export interface ServiceRequest {

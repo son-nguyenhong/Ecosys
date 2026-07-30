@@ -25,10 +25,30 @@ from openpyxl.styles import Alignment, Border, Font
 
 # ── Template path ──────────────────────────────────────────────────────────────
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-_DEFAULT_TEMPLATE = os.path.normpath(
-    os.path.join(_THIS_DIR, "..", "..", "..", "..", "export-GNM", "GNM.xlsx")
-)
-GNM_TEMPLATE_PATH: str = os.getenv("GNM_TEMPLATE_PATH", _DEFAULT_TEMPLATE)
+# Repo root = leo 4 cap tu backend/ppg/app/services/
+_REPO_ROOT = os.path.normpath(os.path.join(_THIS_DIR, "..", "..", "..", ".."))
+
+
+def _find_template() -> str:
+    """Tim GNM.xlsx o cac vi tri kha di. Uu tien bien moi truong GNM_TEMPLATE_PATH."""
+    env = os.getenv("GNM_TEMPLATE_PATH")
+    if env and os.path.isfile(env):
+        return env
+    candidates = [
+        os.path.join(_REPO_ROOT, "docs", "brd", "export-GNM", "GNM.xlsx"),  # vi tri thuc te trong repo
+        os.path.join(_REPO_ROOT, "export-GNM", "GNM.xlsx"),                  # vi tri cu (fallback)
+        os.path.join(_REPO_ROOT, "GNM.xlsx"),
+        os.path.join(_THIS_DIR, "GNM.xlsx"),
+    ]
+    for c in candidates:
+        c = os.path.normpath(c)
+        if os.path.isfile(c):
+            return c
+    # khong tim thay: tra ve gia tri env (neu co) hoac candidate dau de thong bao loi ro
+    return env or os.path.normpath(candidates[0])
+
+
+GNM_TEMPLATE_PATH: str = _find_template()
 
 # ── Style constants ───────────────────────────────────────────────────────────
 _FONT_NAME  = "Myriad Pro"
