@@ -15,13 +15,24 @@ interface DodItemListProps {
   onDelete?: (itemId: string) => Promise<void>
 }
 
-function computeCompletion(items: DodItem[]): number {
+/**
+ * Cột NUMERIC của Postgres từng về tới đây dưới dạng chuỗi ("40.00") — khi đó
+ * acc + i.weight là NỐI CHUỖI, không phải phép cộng, và kết quả ra "NaN%".
+ * Backend đã đổi Decimal → float ở biên API; num() là lớp chặn thứ hai để
+ * một nguồn dữ liệu lệch kiểu không thể làm hỏng con số hiển thị.
+ */
+export function num(v: unknown): number {
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+export function computeCompletion(items: DodItem[]): number {
   if (items.length === 0) return 0
-  const totalWeight = items.reduce((acc, i) => acc + i.weight, 0)
+  const totalWeight = items.reduce((acc, i) => acc + num(i.weight), 0)
   if (totalWeight === 0) return 0
   const achieved = items
     .filter((i) => i.is_achieved)
-    .reduce((acc, i) => acc + i.weight, 0)
+    .reduce((acc, i) => acc + num(i.weight), 0)
   return (achieved / totalWeight) * 100
 }
 

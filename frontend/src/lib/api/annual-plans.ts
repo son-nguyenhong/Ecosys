@@ -259,11 +259,13 @@ export const deleteRisk = (planId: string, id: string) =>
 
 // ── Dashboard summary (FR-022) ───────────────────────────────────
 
+// Router reports của ppg có prefix "/api/v1/reports" (khác các router khác của ppg),
+// nên đường dẫn phải mang theo /api/v1 — thiếu là 404. Xem backend/ppg/app/routers/reports.py
 export function getAnnualPlanSummary(
   planId: string,
 ): Promise<SingleResponse<AnnualPlanSummary>> {
   return request<SingleResponse<AnnualPlanSummary>>(
     'GET',
-    `/reports/annual-plan-summary/${planId}`,
+    `/api/v1/reports/annual-plan-summary/${planId}`,
   )
 }

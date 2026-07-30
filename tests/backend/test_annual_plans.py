@@ -496,3 +496,152 @@ def test_unlink_project(ppg_client):
     app.dependency_overrides[get_db] = fake_db
     resp = client.delete(f"/annual-plans/{plan_id}/projects/{project_id}")
     assert resp.status_code == 204
+
+
+# ---------------------------------------------------------------------------
+# Hoi quy: cot NUMERIC phai ra JSON number, khong duoc ra string
+#
+# Bug that: asyncpg tra NUMERIC ve Decimal, Pydantic v2 serialize Decimal thanh
+# chuoi ("40.00"). Frontend khai bao number va cong don:
+#     0 + "40.00" + "30.00" -> "040.0030.00" -> Number(...) = NaN -> UI hien "NaN%"
+# ---------------------------------------------------------------------------
+
+
+def test_row_to_dict_doi_decimal_thanh_float():
+    """row_to_dict phai doi Decimal -> float, ke ca long trong dict/list."""
+    import os
+    import sys
+    from decimal import Decimal
+
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "backend", "ppg"))
+    from app.utils import row_to_dict, to_jsonable  # type: ignore[import]
+
+    out = row_to_dict({"weight": Decimal("40.00"), "criterion": "x", "is_achieved": True})
+    assert out["weight"] == 40.0
+    assert isinstance(out["weight"], float)
+    assert out["criterion"] == "x" and out["is_achieved"] is True
+
+    nested = to_jsonable({"rows": [{"amount": Decimal("1000.50")}], "pct": Decimal("12.5")})
+    assert nested == {"rows": [{"amount": 1000.5}], "pct": 12.5}
+    assert isinstance(nested["rows"][0]["amount"], float)
+
+    # gia tri khong phai Decimal thi giu nguyen kieu
+    assert to_jsonable(None) is None
+    assert to_jsonable(7) == 7 and isinstance(to_jsonable(7), int)
+
+
+def test_dod_items_tra_weight_dang_so(ppg_client):
+    """GET /dod-items: weight phai la number trong JSON (khong phai "40.00")."""
+    from decimal import Decimal
+
+    from app.database import get_db  # type: ignore[import]
+
+    app, client = ppg_client
+    plan_id = str(uuid4())
+    plan = make_plan_record(plan_id=plan_id, status="active")
+    rows = [
+        {**make_dod_item(plan_id, achieved=False), "weight": Decimal("40.00")},
+        {**make_dod_item(plan_id, achieved=True), "weight": Decimal("10.00")},
+    ]
+
+    async def fake_db():
+        db = MagicMock()
+        db.fetchrow = AsyncMock(return_value=plan)
+        db.fetch = AsyncMock(return_value=rows)
+        yield db
+
+    app.dependency_overrides[get_db] = fake_db
+    resp = client.get(f"/annual-plans/{plan_id}/dod-items")
+    assert resp.status_code == 200
+    body = resp.json()
+
+    for item in body["data"]:
+        assert isinstance(item["weight"], (int, float)), (
+            "weight ra kieu %s — frontend cong don se noi chuoi thanh NaN" % type(item["weight"])
+        )
+    # cong don dung phai ra 50, chuoi se ra "040.0010.00"
+    assert sum(i["weight"] for i in body["data"]) == 50.0
+    assert body["dod_completion_pct"] == 20.0
+
+
+def test_budget_tra_so_tien_dang_so(ppg_client):
+    """GET /budget: amount_planned/amount_actual phai la number."""
+    from decimal import Decimal
+
+    from app.database import get_db  # type: ignore[import]
+
+    app, client = ppg_client
+    plan_id = str(uuid4())
+    rows = [
+        {
+            "id": str(uuid4()), "plan_id": plan_id, "label": "Ha tang",
+            "budget_type": "capex", "quarter": "Q1",
+            "amount_planned": Decimal("1000000.00"), "amount_actual": Decimal("250000.00"),
+            "currency": "VND", "notes": None,
+            "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
+        },
+        {
+            "id": str(uuid4()), "plan_id": plan_id, "label": "Licence",
+            "budget_type": "opex", "quarter": "Q2",
+            "amount_planned": Decimal("500000.00"), "amount_actual": Decimal("0.00"),
+            "currency": "VND", "notes": None,
+            "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z",
+        },
+    ]
+
+    async def fake_db():
+        db = MagicMock()
+        db.fetchrow = AsyncMock(return_value={"id": plan_id})
+        db.fetch = AsyncMock(return_value=rows)
+        yield db
+
+    app.dependency_overrides[get_db] = fake_db
+    resp = client.get(f"/annual-plans/{plan_id}/budget")
+    assert resp.status_code == 200
+    items = resp.json()
+
+    for it in items:
+        assert isinstance(it["amount_planned"], (int, float))
+        assert isinstance(it["amount_actual"], (int, float))
+    assert sum(i["amount_planned"] for i in items) == 1500000.0
+
+
+def test_route_bao_cao_ke_hoach_nam_nam_duoi_api_v1(ppg_client):
+    """Router reports co prefix /api/v1 — frontend tung goi thieu nen 404."""
+    app, _ = ppg_client
+    paths = {getattr(r, "path", "") for r in app.routes}
+    assert "/api/v1/reports/annual-plan-summary/{plan_id}" in paths
+    assert "/reports/annual-plan-summary/{plan_id}" not in paths
+
+
+def test_summary_tra_coverage_0_khi_chua_co_bao_cao_test(ppg_client):
+    """FR-022: du an chua co test report -> test_coverage_pct = 0.0, khong duoc None.
+
+    Tra None lam UI goi null.toFixed() -> tab Dashboard vo trang.
+    """
+    from app.database import get_db  # type: ignore[import]
+
+    app, client = ppg_client
+    plan_id = str(uuid4())
+    project_id = str(uuid4())
+    plan = make_plan_record(plan_id=plan_id, status="active")
+    projects = [{"id": project_id, "name": "eHR 2.0", "status": "active", "code": "EHR-2026"}]
+
+    async def fake_db():
+        db = MagicMock()
+        # thu tu goi: fetchrow(plan) -> fetch(dod) -> fetch(projects) -> fetchval x3 -> fetchrow(test_row)
+        db.fetchrow = AsyncMock(side_effect=[plan, None])
+        db.fetch = AsyncMock(side_effect=[[], projects])
+        db.fetchval = AsyncMock(side_effect=[3, 1, 2])
+        yield db
+
+    app.dependency_overrides[get_db] = fake_db
+    resp = client.get(f"/api/v1/reports/annual-plan-summary/{plan_id}")
+    assert resp.status_code == 200
+    proj = resp.json()["data"]["projects"][0]
+
+    assert proj["test_coverage_pct"] == 0.0
+    assert proj["test_coverage_pct"] is not None, "None se lam UI vo trang o tab Dashboard"
+    assert isinstance(proj["test_coverage_pct"], (int, float))
+    assert proj["milestone_progress"] == "1/3"
+    assert proj["ba_docs_approved"] == 2

@@ -245,7 +245,10 @@ async def annual_plan_summary(
             """,
             str(p["id"]),
         )
-        test_coverage = float(test_row["coverage_pct"]) if test_row else None
+        # Du an chua co bao cao test => 0.0, KHONG phai None.
+        # Hop dong API (TypeScript: test_coverage_pct: number) va UI goi .toFixed()
+        # tren gia tri nay; tra None lam tab Dashboard vo trang.
+        test_coverage = float(test_row["coverage_pct"]) if test_row else 0.0
 
         project_details.append(
             {

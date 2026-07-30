@@ -2,7 +2,7 @@
  * AnnualPlanDashboard — FR-022: summary stats for an annual plan
  */
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { KpiCard, StatusBadge, ProgressBar, Btn, EmptyState } from '../ui'
 import { getAnnualPlanSummary } from '../../lib/api/annual-plans'
@@ -13,6 +13,15 @@ interface AnnualPlanDashboardProps {
   onError?: (msg: string) => void
 }
 
+/**
+ * Chặn null/undefined/chuỗi từ payload báo cáo. Dự án chưa có báo cáo test từng
+ * về test_coverage_pct = null, khiến .toFixed() nổ và tab Dashboard trắng màn.
+ */
+const num = (v: unknown): number => {
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
 export function AnnualPlanDashboard({
   planId,
   onError,
@@ -20,17 +29,25 @@ export function AnnualPlanDashboard({
   const [summary, setSummary] = useState<AnnualPlanSummary | null>(null)
   const [loading, setLoading] = useState(false)
 
+  // onError được truyền vào dưới dạng arrow inline nên MỖI lần render là một hàm mới.
+  // Nếu để nó trong deps của load (và load trong deps của useEffect) thì khi API lỗi:
+  //   gọi API → lỗi → onError bật toast → cha re-render → onError mới → load mới →
+  //   useEffect chạy lại → gọi API…  → nện server vô hạn (đã thấy 361 request/tab).
+  // Giữ callback trong ref để effect chỉ phụ thuộc planId.
+  const onErrorRef = useRef(onError)
+  onErrorRef.current = onError
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const res = await getAnnualPlanSummary(planId)
       setSummary(res.data)
     } catch (e: unknown) {
-      onError?.((e as Error).message)
+      onErrorRef.current?.((e as Error).message)
     } finally {
       setLoading(false)
     }
-  }, [planId, onError])
+  }, [planId])
 
   useEffect(() => {
     load()
@@ -60,10 +77,10 @@ export function AnnualPlanDashboard({
   }
 
   const totalProjects =
-    summary.projects_by_status.active +
-    summary.projects_by_status.on_hold +
-    summary.projects_by_status.completed +
-    summary.projects_by_status.archived
+    num(summary.projects_by_status.active) +
+    num(summary.projects_by_status.on_hold) +
+    num(summary.projects_by_status.completed) +
+    num(summary.projects_by_status.archived)
 
   return (
     <div>
@@ -97,8 +114,8 @@ export function AnnualPlanDashboard({
         />
         <KpiCard
           label="DoD hoàn thành"
-          value={`${summary.dod_completion_pct.toFixed(0)}%`}
-          changePositive={summary.dod_completion_pct >= 80}
+          value={`${num(summary.dod_completion_pct).toFixed(0)}%`}
+          changePositive={num(summary.dod_completion_pct) >= 80}
         />
       </div>
 
@@ -109,13 +126,13 @@ export function AnnualPlanDashboard({
         >
           <span>Tiến độ DoD tổng thể</span>
           <span style={{ fontWeight: 700 }}>
-            {summary.dod_completion_pct.toFixed(1)}%
+            {num(summary.dod_completion_pct).toFixed(1)}%
           </span>
         </div>
         <ProgressBar
-          value={summary.dod_completion_pct}
+          value={num(summary.dod_completion_pct)}
           color={
-            summary.dod_completion_pct >= 80
+            num(summary.dod_completion_pct) >= 80
               ? 'var(--vib-success)'
               : 'var(--vib-warning)'
           }
@@ -166,9 +183,9 @@ export function AnnualPlanDashboard({
                 <span className="txt_r_xxxs">{proj.ba_docs_approved}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <ProgressBar
-                    value={proj.test_coverage_pct}
+                    value={num(proj.test_coverage_pct)}
                     color={
-                      proj.test_coverage_pct >= 80
+                      num(proj.test_coverage_pct) >= 80
                         ? 'var(--vib-success)'
                         : 'var(--vib-warning)'
                     }
@@ -177,7 +194,7 @@ export function AnnualPlanDashboard({
                     className="txt_r_xxxs"
                     style={{ whiteSpace: 'nowrap', minWidth: 36 }}
                   >
-                    {proj.test_coverage_pct.toFixed(0)}%
+                    {num(proj.test_coverage_pct).toFixed(0)}%
                   </span>
                 </div>
               </React.Fragment>

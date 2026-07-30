@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.auth import CurrentUser
 from app.database import get_db
+from app.utils import row_to_dict as _row
 from app.services.audit_service import log_audit
 
 router = APIRouter(prefix="/annual-plans", tags=["annual-plans-v2"])
@@ -167,7 +168,7 @@ async def list_annual_plans(
 
     result_data = []
     for r in rows:
-        d = dict(r)
+        d = _row(r)
         # Compute DoD pct
         dod_items = await db.fetch(
             "SELECT weight, is_achieved FROM ppg_annual_plan_dod_items WHERE plan_id = $1", d["id"]
@@ -230,7 +231,7 @@ async def create_annual_plan(
         new_values=body.model_dump(),
     )
 
-    return {"data": dict(row)}
+    return {"data": _row(row)}
 
 
 @router.get("/{plan_id}")
@@ -260,9 +261,9 @@ async def get_annual_plan(
         plan_id,
     )
 
-    d = dict(plan)
-    d["objectives"] = [dict(o) for o in objectives]
-    d["dod_items"] = [dict(i) for i in dod_items]
+    d = _row(plan)
+    d["objectives"] = [_row(o) for o in objectives]
+    d["dod_items"] = [_row(i) for i in dod_items]
     d["projects"] = [
         {
             "project_id": str(r["project_id"]),
@@ -287,7 +288,7 @@ async def update_annual_plan(
     db: asyncpg.Connection = Depends(get_db),
 ) -> dict:
     plan = await _get_plan_or_404(db, plan_id)
-    old_values = dict(plan)
+    old_values = _row(plan)
 
     updates: dict = {}
     if body.name is not None:
@@ -322,7 +323,7 @@ async def update_annual_plan(
         old_values=old_values,
         new_values=body.model_dump(exclude_none=True),
     )
-    return {"data": dict(row)}
+    return {"data": _row(row)}
 
 
 @router.delete("/{plan_id}", status_code=204, response_class=Response)
@@ -397,7 +398,7 @@ async def change_plan_status(
         old_values={"status": old_status},
         new_values={"status": new_status},
     )
-    return {"data": dict(row)}
+    return {"data": _row(row)}
 
 
 # ---------------------------------------------------------------------------
@@ -415,7 +416,7 @@ async def list_dod_items(
         "SELECT * FROM ppg_annual_plan_dod_items WHERE plan_id = $1 ORDER BY created_at",
         plan_id,
     )
-    items = [dict(r) for r in rows]
+    items = [_row(r) for r in rows]
     return {
         "data": items,
         "dod_completion_pct": _calc_dod_pct(list(rows)),
@@ -438,7 +439,7 @@ async def add_dod_item(
         """,
         item_id, plan_id, body.criterion, body.weight,
     )
-    return {"data": dict(row)}
+    return {"data": _row(row)}
 
 
 @router.delete("/{plan_id}/dod-items/{item_id}", status_code=204, response_class=Response)
@@ -474,7 +475,7 @@ async def update_dod_item(
     if not existing:
         raise HTTPException(404, detail={"code": "NOT_FOUND", "message": "DoD item not found"})
 
-    old_values = dict(existing)
+    old_values = _row(existing)
 
     if body.is_achieved and not existing["is_achieved"]:
         row = await db.fetchrow(
@@ -505,7 +506,7 @@ async def update_dod_item(
         old_values=old_values,
         new_values=body.model_dump(),
     )
-    return {"data": dict(row)}
+    return {"data": _row(row)}
 
 
 # ---------------------------------------------------------------------------
@@ -529,7 +530,7 @@ async def list_plan_projects(
         """,
         plan_id,
     )
-    return {"data": [dict(r) for r in rows]}
+    return {"data": [_row(r) for r in rows]}
 
 
 @router.post("/{plan_id}/projects", status_code=201)
@@ -586,7 +587,7 @@ async def link_project(
         changed_by=user.sub,
         new_values={"plan_id": plan_id, "project_id": body.project_id},
     )
-    return {"data": dict(row)}
+    return {"data": _row(row)}
 
 
 @router.delete("/{plan_id}/projects/{project_id}", status_code=204, response_class=Response)

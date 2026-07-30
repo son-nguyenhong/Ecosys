@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.auth import CurrentUser
 from app.database import get_db
+from app.utils import row_to_dict as _row
 
 router = APIRouter(prefix="/annual-plans", tags=["annual-plans-extended"])
 
@@ -58,7 +59,7 @@ async def list_initiatives(user: CurrentUser, plan_id: str, db: asyncpg.Connecti
         "SELECT * FROM ppg_plan_initiatives WHERE plan_id=$1 ORDER BY sort_order, quarter NULLS LAST, created_at",
         plan_id,
     )
-    return [dict(r) for r in rows]
+    return [_row(r) for r in rows]
 
 
 @router.post("/{plan_id}/initiatives", status_code=201)
@@ -74,7 +75,7 @@ async def create_initiative(
         str(uuid4()), plan_id, body.title, body.description,
         body.quarter, body.priority, body.status, body.sort_order, _user(user),
     )
-    return dict(row)
+    return _row(row)
 
 
 @router.put("/{plan_id}/initiatives/{iid}")
@@ -92,7 +93,7 @@ async def update_initiative(
     )
     if not row:
         raise HTTPException(404, "Initiative not found")
-    return dict(row)
+    return _row(row)
 
 
 @router.delete("/{plan_id}/initiatives/{iid}", status_code=204)
@@ -139,7 +140,7 @@ async def list_biz_objectives(user: CurrentUser, plan_id: str, db: asyncpg.Conne
     )
     result = []
     for r in rows:
-        obj = dict(r)
+        obj = _row(r)
         # include mapped initiative ids
         maps = await db.fetch(
             "SELECT initiative_id FROM ppg_biz_obj_initiative_map WHERE biz_obj_id=$1", r["id"]
@@ -162,7 +163,7 @@ async def create_biz_objective(
         str(uuid4()), plan_id, body.title, body.description,
         body.biz_owner, body.category, body.sort_order, _user(user),
     )
-    return {**dict(row), "initiative_ids": []}
+    return {**_row(row), "initiative_ids": []}
 
 
 @router.put("/{plan_id}/biz-objectives/{oid}")
@@ -180,7 +181,7 @@ async def update_biz_objective(
     )
     if not row:
         raise HTTPException(404, "Business objective not found")
-    return dict(row)
+    return _row(row)
 
 
 @router.delete("/{plan_id}/biz-objectives/{oid}", status_code=204)
@@ -251,7 +252,7 @@ async def list_budget(user: CurrentUser, plan_id: str, db: asyncpg.Connection = 
         "SELECT * FROM ppg_plan_budget WHERE plan_id=$1 ORDER BY budget_type, quarter NULLS LAST, label",
         plan_id,
     )
-    return [dict(r) for r in rows]
+    return [_row(r) for r in rows]
 
 
 @router.post("/{plan_id}/budget", status_code=201)
@@ -270,7 +271,7 @@ async def create_budget(
         body.amount_planned, body.amount_actual, body.currency,
         body.notes, _user(user),
     )
-    return dict(row)
+    return _row(row)
 
 
 @router.put("/{plan_id}/budget/{bid}")
@@ -288,7 +289,7 @@ async def update_budget(
     )
     if not row:
         raise HTTPException(404, "Budget entry not found")
-    return dict(row)
+    return _row(row)
 
 
 @router.delete("/{plan_id}/budget/{bid}", status_code=204)
@@ -332,7 +333,7 @@ async def list_resources(user: CurrentUser, plan_id: str, db: asyncpg.Connection
         "SELECT * FROM ppg_plan_resources WHERE plan_id=$1 ORDER BY team NULLS LAST, member_name",
         plan_id,
     )
-    return [dict(r) for r in rows]
+    return [_row(r) for r in rows]
 
 
 @router.post("/{plan_id}/resources", status_code=201)
@@ -350,7 +351,7 @@ async def create_resource(
         body.member_name, body.role, body.team,
         body.allocation_pct, body.quarter, body.notes, _user(user),
     )
-    return dict(row)
+    return _row(row)
 
 
 @router.put("/{plan_id}/resources/{rid}")
@@ -368,7 +369,7 @@ async def update_resource(
     )
     if not row:
         raise HTTPException(404, "Resource not found")
-    return dict(row)
+    return _row(row)
 
 
 @router.delete("/{plan_id}/resources/{rid}", status_code=204)
@@ -414,7 +415,7 @@ async def list_kpis(user: CurrentUser, plan_id: str, db: asyncpg.Connection = De
         "SELECT * FROM ppg_plan_kpis WHERE plan_id=$1 ORDER BY quarter NULLS LAST, metric_name",
         plan_id,
     )
-    return [dict(r) for r in rows]
+    return [_row(r) for r in rows]
 
 
 @router.post("/{plan_id}/kpis", status_code=201)
@@ -432,7 +433,7 @@ async def create_kpi(
         body.metric_name, body.unit, body.target_value, body.actual_value,
         body.quarter, body.status, body.notes, _user(user),
     )
-    return dict(row)
+    return _row(row)
 
 
 @router.put("/{plan_id}/kpis/{kid}")
@@ -450,7 +451,7 @@ async def update_kpi(
     )
     if not row:
         raise HTTPException(404, "KPI not found")
-    return dict(row)
+    return _row(row)
 
 
 @router.delete("/{plan_id}/kpis/{kid}", status_code=204)
@@ -492,7 +493,7 @@ async def list_dependencies(user: CurrentUser, plan_id: str, db: asyncpg.Connect
         "SELECT * FROM ppg_plan_dependencies WHERE plan_id=$1 ORDER BY created_at",
         plan_id,
     )
-    return [dict(r) for r in rows]
+    return [_row(r) for r in rows]
 
 
 @router.post("/{plan_id}/dependencies", status_code=201)
@@ -511,7 +512,7 @@ async def create_dependency(
         body.from_label, body.to_label,
         body.dep_type, body.description, body.status, _user(user),
     )
-    return dict(row)
+    return _row(row)
 
 
 @router.put("/{plan_id}/dependencies/{did}")
@@ -529,7 +530,7 @@ async def update_dependency(
     )
     if not row:
         raise HTTPException(404, "Dependency not found")
-    return dict(row)
+    return _row(row)
 
 
 @router.delete("/{plan_id}/dependencies/{did}", status_code=204)
@@ -579,7 +580,7 @@ async def list_risks(user: CurrentUser, plan_id: str, db: asyncpg.Connection = D
         "SELECT * FROM ppg_plan_risks WHERE plan_id=$1 ORDER BY risk_score DESC NULLS LAST, created_at",
         plan_id,
     )
-    return [dict(r) for r in rows]
+    return [_row(r) for r in rows]
 
 
 @router.post("/{plan_id}/risks", status_code=201)
@@ -598,7 +599,7 @@ async def create_risk(
         body.mitigation, body.contingency,
         body.owner, body.quarter, body.status, _user(user),
     )
-    return dict(row)
+    return _row(row)
 
 
 @router.put("/{plan_id}/risks/{rid}")
@@ -616,7 +617,7 @@ async def update_risk(
     )
     if not row:
         raise HTTPException(404, "Risk not found")
-    return dict(row)
+    return _row(row)
 
 
 @router.delete("/{plan_id}/risks/{rid}", status_code=204)

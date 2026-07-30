@@ -8,8 +8,14 @@ import { getBudget, createBudget, updateBudget, deleteBudget } from '../../lib/a
 import type { BudgetEntry, BudgetCreate, BudgetType, Quarter } from '../../lib/types/annual-plan'
 import { useStore } from '../../stores/auth'
 
-const FMT = (n: number) => new Intl.NumberFormat('vi-VN').format(n)
-const PCT = (actual: number, planned: number) => planned > 0 ? Math.round(actual / planned * 100) : 0
+// num(): chặn trường hợp cột NUMERIC về dạng chuỗi ("1000.00") làm reduce() nối chuỗi
+const num = (v: unknown): number => {
+  const n = typeof v === 'number' ? v : Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+const FMT = (n: number) => new Intl.NumberFormat('vi-VN').format(num(n))
+const PCT = (actual: number, planned: number) =>
+  num(planned) > 0 ? Math.round(num(actual) / num(planned) * 100) : 0
 
 const EMPTY: BudgetCreate = { label: '', budget_type: 'opex', quarter: undefined, amount_planned: 0, amount_actual: 0, currency: 'VND' }
 
@@ -32,8 +38,8 @@ export function BudgetTab({ planId, readOnly }: { planId: string; readOnly?: boo
 
   const filtered = typeFilter ? items.filter(i => i.budget_type === typeFilter) : items
 
-  const totalPlanned = (type?: BudgetType) => items.filter(i => !type || i.budget_type === type).reduce((s, i) => s + (i.amount_planned || 0), 0)
-  const totalActual  = (type?: BudgetType) => items.filter(i => !type || i.budget_type === type).reduce((s, i) => s + (i.amount_actual  || 0), 0)
+  const totalPlanned = (type?: BudgetType) => items.filter(i => !type || i.budget_type === type).reduce((s, i) => s + num(i.amount_planned), 0)
+  const totalActual  = (type?: BudgetType) => items.filter(i => !type || i.budget_type === type).reduce((s, i) => s + num(i.amount_actual),  0)
 
   const openAdd = () => { setEditing(null); setForm(EMPTY); setShowModal(true) }
   const openEdit = (item: BudgetEntry) => {

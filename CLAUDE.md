@@ -288,3 +288,35 @@ _Xem .highlight-log.yaml để xem full log._
   UX theo yêu cầu người dùng: Master Doc là BẢNG (filter dự án/loại/chủ tài liệu/trạng thái +
   group by Dự án hoặc Loại, gập nhóm được), diff mặc định render Markdown (đổi sang "Nguồn .md"
   khi cần soát từng từ), thêm view "So sánh tài liệu" so 2 tài liệu bất kỳ theo dòng.
+- 2026-07-30: Fix session — Module **Kế hoạch năm** (annual plans): 4 lỗi, tìm bằng cách drive
+  browser thật qua toàn bộ 11 tab × 3 kế hoạch (API riêng lẻ đều trả 200 nên probe endpoint
+  KHÔNG phát hiện được — bài học: phải chạy UI thật, không chỉ curl endpoint).
+  (1) **Router `reports` của ppg có prefix `/api/v1/reports`** — khác mọi router ppg khác. Frontend
+  gọi `/reports/annual-plan-summary/{id}` → 404, tab Dashboard vô dụng từ đầu. Sửa 2 client:
+  `lib/api/annual-plans.ts` và `lib/api/project-objects.ts` (`/reports/connections` cũng sai
+  y hệt, chưa ai gọi tới nên chưa lộ). Đã thêm test chốt: route phải nằm dưới `/api/v1`.
+  (2) **Vòng lặp gọi API vô hạn** — `AnnualPlanDashboard` nhận `onError` là arrow inline từ
+  `AnnualPlansPage`, mà `onError` nằm trong deps của `useCallback load` → mỗi render sinh `load`
+  mới → `useEffect` chạy lại. Khi API lỗi: gọi → lỗi → toast → re-render → gọi lại… Đo được
+  **361 request/tab** trong ~1,3 giây. Sửa: giữ callback trong `useRef`, effect chỉ phụ thuộc
+  `planId`. Test hồi quy re-render 5 lần và ép `fetch` đúng 1 lần (bản cũ ra 6).
+  Đã soát 6 tab còn lại: chúng dùng `addToast` từ zustand (reference ổn định) nên không bị.
+  (3) **Cột NUMERIC ra JSON dạng CHUỖI** — asyncpg trả `Decimal`, Pydantic v2 serialize
+  `Decimal` thành `"40.00"`. Frontend khai báo `number` và cộng dồn:
+  `0 + "40.00" + "30.00"` = `"040.0030.00"` → `Number(...)` = NaN → tab DoD hiện **"NaN%"**.
+  Sửa ở BIÊN API (`app/utils.py` → `row_to_dict`, thay mọi `dict(row)` trong 2 router kế hoạch
+  năm) để payload đúng hợp đồng đã khai báo, KHÔNG sửa bằng cách parse ở frontend.
+  Cùng lỗi tiềm ẩn ở BudgetTab (tổng tiền) / ResourceTab / KpiTab — nay hết.
+  Cân nhắc đã ghi trong `utils.py`: float64 chính xác tới 2^53; nếu sau này cộng dồn số tiền
+  lớn hơn thế thì phải trả chuỗi và tính bằng decimal ở cả hai đầu.
+  (4) **Lỗi bị lỗi khác che** — sau khi vá (1), tab Dashboard render thật và crash:
+  `test_coverage_pct` = `None` với dự án chưa có test report → `null.toFixed()`. Sửa backend
+  trả `0.0` (đúng hợp đồng `number`) + `num()` guard ở component. Bài học: vá lỗi tầng ngoài
+  xong phải drive lại, vì lỗi tầng trong mới lộ ra.
+  Chỉ dùng codec NUMERIC toàn cục cho asyncpg thì gọn hơn nhưng đổi hành vi của MỌI router ppg
+  (catalog, requests, projects…) — có chủ ý không làm, giữ bán kính ảnh hưởng trong module lỗi.
+  Verify: pytest 356 pass (baseline 351, cùng 24 fail có sẵn ở test_catalog/test_project_objects/
+  test_services/test_workflow_docs) · vitest 310 pass (baseline 300, cùng 21 fail có sẵn ở 6 file)
+  · 0 lỗi tsc trong file đã sửa · drive browser 33/33 tab: 0 HTTP ≥400, 0 console error, 0 exception.
+  Bẫy môi trường: `uvicorn --reload` KHÔNG nạp code mới (lặp lại đúng bẫy đã ghi ngày 2026-07-30)
+  → phải kill cả tiến trình reloader lẫn tiến trình con `multiprocessing.spawn` rồi khởi động lại.

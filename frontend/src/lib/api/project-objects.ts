@@ -252,8 +252,9 @@ export function getConnectionReport(
   if (filter.project_id) p.set('project_id', filter.project_id)
   if (filter.direction) p.set('direction', filter.direction)
   if (filter.status) p.set('status', filter.status)
+  // Router reports của ppg có prefix "/api/v1/reports" — thiếu /api/v1 là 404
   return request<ConnectionReportResponse>(
     'GET',
-    `/reports/connections?${p.toString()}`,
+    `/api/v1/reports/connections?${p.toString()}`,
   )
 }
